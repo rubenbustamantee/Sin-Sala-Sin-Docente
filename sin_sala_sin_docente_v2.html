@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Informes · Programación Académica</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --bg: #f6f4f1;
+    --paper: #ffffff;
+    --ink: #221d1f;
+    --ink-soft: #6b6462;
+    --line: #e4ded8;
+    --crimson: #9c1c31;
+    --crimson-dark: #711524;
+    --crimson-soft: #f3dfe2;
+    --navy: #1f2b3a;
+    --gold: #b8922f;
+    --gold-soft: #f4ecd6;
+    --ok: #2f7a4f;
+    --radius: 10px;
+    font-size: 16px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family: "Iowan Old Style","Georgia", serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .sans{ font-family: "Helvetica Neue", Arial, sans-serif; }
+
+  header.top{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding: 22px 32px;
+    background: var(--navy);
+    color: #fff;
+    border-bottom: 4px solid var(--crimson);
+  }
+  header.top .brand{
+    display:flex;
+    align-items:baseline;
+    gap:14px;
+  }
+  header.top h1{
+    font-size:1.35rem;
+    margin:0;
+    font-weight:600;
+    letter-spacing:0.2px;
+  }
+  header.top .sub{
+    font-family:"Helvetica Neue", Arial, sans-serif;
+    font-size:0.78rem;
+    color:#c9d0da;
+    margin-top:2px;
+  }
+  .visits{
+    font-family:"Helvetica Neue", Arial, sans-serif;
+    display:flex;
+    align-items:center;
+    gap:8px;
+    background: rgba(255,255,255,0.08);
+    border:1px solid rgba(255,255,255,0.18);
+    padding:8px 14px;
+    border-radius: 999px;
+    font-size:0.82rem;
+  }
+  .visits .dot{
+    width:7px;height:7px;border-radius:50%;
+    background: var(--gold);
+    box-shadow:0 0 0 3px rgba(184,146,47,0.25);
+  }
+  .visits b{ font-weight:700; letter-spacing:0.3px;}
+  .visits .num{
+    font-variant-numeric: tabular-nums;
+    background: rgba(255,255,255,0.12);
+    padding:2px 8px;
+    border-radius:6px;
+  }
+
+  main{
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 28px 32px 80px;
+  }
+
+  .panel{
+    background: var(--paper);
+    border:1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 22px 24px;
+    margin-bottom: 22px;
+    box-shadow: 0 1px 2px rgba(34,29,31,0.03);
+  }
+  .panel h2{
+    font-family:"Helvetica Neue", Arial, sans-serif;
+    font-size: 0.72rem;
+    text-transform:uppercase;
+    letter-spacing: 1.4px;
+    color: var(--crimson);
+    margin: 0 0 4px 0;
+    font-weight:700;
+  }
+  .panel h3{
+    margin: 0 0 14px 0;
+    font-size:1.22rem;
+    font-weight:600;
+  }
+  .panel p.desc{
+    font-family:"Helvetica Neue", Arial, sans-serif;
+    color: var(--ink-soft);
+    font-size:0.88rem;
+    margin: 0 0 16px 0;
+    line-height:1.5;
+  }
+
+  /* --- Carga de archivo --- */
+  .drop{
+    border: 1.5px dashed var(--line);
+    border-radius: var(--radius);
+    padding: 26px;
+    text-align:center;
+    background: #fbfaf8;
+    font-family:"Helvetica Neue", Arial, sans-serif;
+    transition: border-color .15s ease, background .15s ease;
+    cursor:pointer;
+  }
+  .drop.drag{
+    border-color: var(--crimson);
+    background: var(--crimson-soft);
+  }
+  .drop input{ display:none; }
+  .drop .icon{ font-size:1.6rem; margin-bottom:6px; }
+  .drop .title{ font-weight:600; font-size:0.95rem; }
+  .drop .hint{ color:var(--ink-soft); font-size:0.8rem; margin-top:4px;}
+  .file-status{
+    font-family:"Helvetica Neue", Arial, sans-serif;
+    margin-top:14px;
+    font-size:0.86rem;
+    display:none;
+    align-items:center;
+    gap:10px;
+    padding: 10px 14px;
+    background: #eef6f0;
+    border:1px solid #cfe6d5;
+    border-radius:8px;
+    color:#245a37;
+  }
+  .file-status.err{
+    background:#fbeaea; border-color:#f0c6c6; color:#8a2b2b;
+  }
+  .file-status.show{ display:flex; }
+
+  /* --- Filtros --- */
+  .filters{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+  }
+  @media (max-width: 760px){ .filters{ grid-template-columns: 1fr; } }
+
+  .filter-block label.flabel{
+    font-family:"Helvetica Neue", Arial, sans-serif;
+    display:block;
+    font-size:0.78rem;
+    text-transform:uppercase;
+    letter-spacing:0.6px;
+    color: var(--ink-soft);
+    margin-bottom:6px;
+    font-weight:700;
+  }
+  .ms{
+    position:relative;
+    font-family:"Helvetica Neue", Arial, sans-serif;
+  }
+  .ms-toggle{
+    width:100%;
+    text-align:left;
+    background:#fff;
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding: 11px 14px;
+    font-size:0.92rem;
+    cursor:pointer;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    color: var(--ink);
+  }
+  .ms-toggle:hover{ border-color: var(--crimson); }
+  .ms-toggle .chev{ color: var(--ink-soft); font-size:0.7rem; }
+  .ms-panel{
+    display:none;
+    position:absolute;
+    z-index:20;
+    top: calc(100% + 6px);
+    left:0; right:0;
+    background:#fff;
+    border:1px solid var(--line);
+    border-radius:8px;
+    box-shadow: 0 10px 24px rgba(34,29,31,0.12);
+    max-height: 320px;
+    display:none;
+    flex-direction:column;
+    overflow:hidden;
+  }
+  .ms.open .ms-panel{ display:flex; }
+  .ms-panel-actions{
+    display:flex;
+    gap:8px;
+    padding:10px 12px;
+    border-bottom:1px solid var(--line);
+    background:#faf9f7;
+  }
+  .ms-panel-actions button{
+    font-family:"Helvetica Neue", Arial, sans-serif;
+    font-size:0.74rem;
+    border:1px solid var(--line);
+    background:#fff;
+    padding:5px 10px;
+    border-radius:6px;
+    cursor:pointer;
+    color: var(--ink);
+  }
+  .ms-panel-actions button:hover{ border-color:var(--crimson); color:var(--crimson);}
+  .ms-search{
+    border:none;
+    border-bottom:1px solid var(--line);
+    padding:9px 12px;
+    font-size:0.85rem;
+    outline:none;
+    font-family:"Helvetica Neue", Arial, sans-serif;
+  }
+  .ms-list{
+    overflow-y:auto;
+    padding: 4px 0;
+  }
+  .ms-item{
+    display:flex;
+    align-items:center;
+    gap:9px;
+    padding: 8px 14px;
+    font-size:0.86rem;
+    cursor:pointer;
+  }
+  .ms-item:hover{ background: var(--crimson-soft); }
+  .ms-item input{ accent-color: var(--crimson); width:15px; height:15px; }
+  .ms-count{
+    font-size:0.74rem;
+    color: var(--ink-soft);
+    margin-top:6px;
+  }
+
+  /* --- Reportes --- */
+  .reports{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 22px;
+  }
+  @media (max-width: 900px){ .reports{ grid-template-columns: 1fr; } }
+
+  .report-card{
+    background: var(--paper);
+    border:1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 22px 24px;
+    display:flex;
+    flex-direction:column;
+  }
+  .report-card .tag{
+    font-family:"Helvetica Neue", Arial, sans-serif;
+    display:inline-block;
+    font-size:0.68rem;
+    font-weight:700;
+    letter-spacing:0.8px;
+    text-transform:uppercase;
+    color:var(--gold);
+    background: var(--gold-soft);
+    padding:3px 9px;
+    border-radius:5px;
+    margin-bottom:10px;
+    width:fit-content;
+  }
+  .report-card h3{ margin:0 0 6px 0; font-size:1.15rem; font-weight:600; }
+  .report-card p.desc{
+    font-family:"Helvetica Neue", Arial, sans-serif;
+    color:var(--ink-soft);
+    font-size:0.86rem;
+    line-height:1.5;
+    margin:0 0 18px 0;
+  }
+  .btn{
+    font-family:"Helvetica Neue", Arial, sans-serif;
+    background: var(--crimson);
+    color:#fff;
+    border:none;
+    padding: 11px 18px;
+    border-radius: 8px;
+    font-size:0.88rem;
+    font-weight:600;
+    cursor:pointer;
+    transition: background .15s ease;
+  }
+  .btn:hover{ background: var(--crimson-dark); }
+  .btn:disabled{ background:#c9bdbd; cursor:not-allowed; }
+  .btn.secondary{
+    background:#fff;
+    color: var(--crimson);
+    border: 1.5px solid var(--crimson);
+  }
+  .btn.secondary:hover{ background: var(--crimson-soft); }
+  .btn.secondary:disabled{ color:#b8adad; border-color:#ddd0d0; background:#fff; }
+
+  .result{
+    margin-top: 18px;
+    padding-top:18px;
+    border-top: 1px dashed var(--line);
+  }
+  .big.updating{ opacity:0.35; transition: opacity .1s ease; }
+  .result .big{
+    font-size: 2.6rem;
+    font-weight:700;
+    color: var(--navy);
+    line-height:1;
+    font-variant-numeric: tabular-nums;
+  }
+  .result .big .accent{ color: var(--crimson); }
+  .result .big .pct{
+    font-family:"Helvetica Neue", Arial, sans-serif;
+    font-size: 0.95rem;
+    font-weight:700;
+    color: var(--gold);
+    background: var(--gold-soft);
+    padding: 3px 10px;
+    border-radius: 999px;
+    margin-left: 10px;
+    vertical-align: middle;
+    letter-spacing:0.2px;
+  }
+  .result .caption{
+    font-family:"Helvetica Neue", Arial, sans-serif;
+    font-size:0.8rem;
+    color: var(--ink-soft);
+    margin-top:6px;
+  }
+  .btn-row{
+    margin-top:14px;
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+  }
+
+  table.horario-table{
+    width:100%;
+    border-collapse: collapse;
+    margin-top:14px;
+    font-family:"Helvetica Neue", Arial, sans-serif;
+    font-size:0.84rem;
+  }
+  table.horario-table th, table.horario-table td{
+    text-align:left;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--line);
+  }
+  table.horario-table th{
+    color: var(--ink-soft);
+    text-transform:uppercase;
+    font-size:0.7rem;
+    letter-spacing:0.5px;
+  }
+  table.horario-table tr:last-child td{ border-bottom:none; }
+  table.horario-table td.num{
+    text-align:right;
+    font-variant-numeric:tabular-nums;
+    font-weight:600;
+    color: var(--crimson);
+  }
+  .table-wrap{ max-height: 260px; overflow-y:auto; }
+
+  footer{
+    text-align:center;
+    font-family:"Helvetica Neue", Arial, sans-serif;
+    color: var(--ink-soft);
+    font-size:0.76rem;
+    padding: 10px 0 40px;
+  }
+
+  .disabled-overlay{
+    opacity:0.45;
+    pointer-events:none;
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="brand">
+    <div>
+      <h1>Informes de Programación Académica</h1>
+      <div class="sub">Docencia por definir · Salas sin asignar</div>
+    </div>
+  </div>
+  <div class="visits sans">
+    <span class="dot"></span>
+    <span>Visitas</span>
+    <span class="num" id="visitCount">0</span>
+  </div>
+</header>
+
+<main>
+
+  <section class="panel">
+    <h2 class="sans">Paso 1</h2>
+    <h3>Cargar archivo de programación</h3>
+    <p class="desc">Selecciona o arrastra el Excel de programación regular con el mismo formato habitual.</p>
+
+    <div class="drop" id="dropZone">
+      <input type="file" id="fileInput" accept=".xlsx,.xls">
+      <div class="icon">📄</div>
+      <div class="title">Arrastra tu archivo aquí o haz clic para elegirlo</div>
+      <div class="hint">Formatos aceptados: .xlsx / .xls</div>
+    </div>
+    <div class="file-status sans" id="fileStatus"></div>
+  </section>
+
+  <section class="panel" id="filtersPanel">
+    <h2 class="sans">Paso 2</h2>
+    <h3>Filtrar por Unidad Académica y Tipo de Actividad</h3>
+    <p class="desc">Los filtros aplican a ambos informes. Deja todo seleccionado para no filtrar por ese criterio.</p>
+
+    <div class="filters">
+      <div class="filter-block">
+        <label class="flabel">Unidad Académica</label>
+        <div class="ms" id="msUnidad">
+          <button type="button" class="ms-toggle" id="msUnidadToggle">
+            <span id="msUnidadLabel">Cargar archivo primero</span>
+            <span class="chev">▾</span>
+          </button>
+          <div class="ms-panel">
+            <div class="ms-panel-actions">
+              <button type="button" data-action="all" data-target="unidad">Seleccionar todo</button>
+              <button type="button" data-action="none" data-target="unidad">Deseleccionar todo</button>
+            </div>
+            <input type="text" class="ms-search" placeholder="Buscar unidad..." data-target="unidad">
+            <div class="ms-list" id="unidadList"></div>
+          </div>
+        </div>
+        <div class="ms-count" id="unidadCount"></div>
+      </div>
+
+      <div class="filter-block">
+        <label class="flabel">Tipo Actividad</label>
+        <div class="ms" id="msTipo">
+          <button type="button" class="ms-toggle" id="msTipoToggle">
+            <span id="msTipoLabel">Cargar archivo primero</span>
+            <span class="chev">▾</span>
+          </button>
+          <div class="ms-panel">
+            <div class="ms-panel-actions">
+              <button type="button" data-action="all" data-target="tipo">Seleccionar todo</button>
+              <button type="button" data-action="none" data-target="tipo">Deseleccionar todo</button>
+            </div>
+            <input type="text" class="ms-search" placeholder="Buscar tipo de actividad..." data-target="tipo">
+            <div class="ms-list" id="tipoList"></div>
+          </div>
+        </div>
+        <div class="ms-count" id="tipoCount"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="reports" id="reportsPanel">
+    <div class="report-card">
+      <span class="tag sans">Informe 1</span>
+      <h3>Docentes por definir</h3>
+      <p class="desc">Cantidad de NRC únicos cuyo docente figura como "POR DEFINIR POR DEFINIR", según los filtros elegidos.</p>
+
+      <div class="result" id="result1">
+        <div class="big"><span class="accent" id="r1count">0</span><span class="pct" id="r1pct"></span></div>
+        <div class="caption sans" id="r1caption">Carga un archivo para ver el resultado</div>
+        <div class="btn-row">
+          <button class="btn secondary sans" id="btnDownload1" disabled>Descargar Excel filtrado</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="report-card">
+      <span class="tag sans">Informe 2</span>
+      <h3>Secciones presenciales sin sala</h3>
+      <p class="desc">Cantidad de NRC únicos en modalidad Presencial sin sala asignada, agrupados por horario.</p>
+
+      <div class="result" id="result2">
+        <div class="big"><span class="accent" id="r2count">0</span><span class="pct" id="r2pct"></span></div>
+        <div class="caption sans" id="r2caption">Carga un archivo para ver el resultado</div>
+        <div class="table-wrap">
+          <table class="horario-table sans">
+            <thead><tr><th>Horario</th><th style="text-align:right">NRC sin sala</th><th style="text-align:right">% del informe</th></tr></thead>
+            <tbody id="r2tbody"></tbody>
+          </table>
+        </div>
+        <div class="btn-row">
+          <button class="btn secondary sans" id="btnDownload2" disabled>Descargar Excel filtrado</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>Herramienta interna de apoyo a la programación académica</footer>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------------- Contador de visitas ---------------- */
+  try{
+    var visits = parseInt(localStorage.getItem('unab_informes_visitas') || '0', 10);
+    visits += 1;
+    localStorage.setItem('unab_informes_visitas', String(visits));
+    document.getElementById('visitCount').textContent = visits.toLocaleString('es-CL');
+  }catch(e){
+    document.getElementById('visitCount').textContent = '—';
+  }
+
+  /* ---------------- Estado global ---------------- */
+  var state = {
+    headers: [],
+    rows: [],        // array de arrays (todas las filas de datos, valores crudos)
+    colIndex: {},     // nombre de columna -> índice
+    unidades: [],     // valores únicos de Unidad Académica
+    tipos: [],        // valores únicos de Tipo Actividad
+    selUnidad: new Set(),
+    selTipo: new Set()
+  };
+
+  var REQUIRED = {
+    unidad: 'Unidad Académica',
+    materia: 'Materia',
+    nrc: 'NRC',
+    profesor: 'Nombre Profesor',
+    tipoActividad: 'Tipo Actividad',
+    modalidad: 'Modalidad',
+    horario: 'Horario',
+    sala: 'Sala'
+  };
+
+  /* ---------------- Carga de archivo ---------------- */
+  var dropZone = document.getElementById('dropZone');
+  var fileInput = document.getElementById('fileInput');
+  var fileStatus = document.getElementById('fileStatus');
+
+  dropZone.addEventListener('click', function(){ fileInput.click(); });
+  dropZone.addEventListener('dragover', function(e){ e.preventDefault(); dropZone.classList.add('drag'); });
+  dropZone.addEventListener('dragleave', function(){ dropZone.classList.remove('drag'); });
+  dropZone.addEventListener('drop', function(e){
+    e.preventDefault();
+    dropZone.classList.remove('drag');
+    if(e.dataTransfer.files && e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+  });
+  fileInput.addEventListener('change', function(e){
+    if(e.target.files && e.target.files[0]) handleFile(e.target.files[0]);
+  });
+
+  function showStatus(msg, isErr){
+    fileStatus.textContent = msg;
+    fileStatus.className = 'file-status sans show' + (isErr ? ' err' : '');
+  }
+
+  function handleFile(file){
+    showStatus('Leyendo "' + file.name + '"...', false);
+    var reader = new FileReader();
+    reader.onload = function(e){
+      try{
+        var data = new Uint8Array(e.target.result);
+        var wb = XLSX.read(data, {type:'array', cellDates:true});
+        var sheetName = wb.SheetNames[0];
+        var sheet = wb.Sheets[sheetName];
+        var aoa = XLSX.utils.sheet_to_json(sheet, {header:1, defval:null, raw:true});
+
+        // Buscar la fila de encabezado: aquella que contiene la celda "NRC"
+        var headerRowIdx = -1;
+        for(var r=0; r<Math.min(aoa.length, 30); r++){
+          var row = aoa[r] || [];
+          for(var c=0; c<row.length; c++){
+            if(typeof row[c] === 'string' && row[c].trim().toUpperCase() === 'NRC'){
+              headerRowIdx = r; break;
+            }
+          }
+          if(headerRowIdx >= 0) break;
+        }
+        if(headerRowIdx < 0) throw new Error('No se encontró la fila de encabezado con el detalle de NRC.');
+
+        var headers = (aoa[headerRowIdx] || []).map(function(h){ return h === null ? '' : String(h).trim(); });
+        var colIndex = {};
+        headers.forEach(function(h, i){ if(h) colIndex[h] = i; });
+
+        // Validar columnas necesarias
+        var missing = Object.keys(REQUIRED).filter(function(k){ return !(REQUIRED[k] in colIndex); });
+        if(missing.length){
+          throw new Error('Faltan columnas esperadas: ' + missing.map(function(k){return REQUIRED[k];}).join(', '));
+        }
+
+        var nrcIdx = colIndex[REQUIRED.nrc];
+        var dataRows = aoa.slice(headerRowIdx + 1).filter(function(row){
+          return row && row[nrcIdx] !== null && row[nrcIdx] !== undefined && String(row[nrcIdx]).trim() !== '';
+        });
+
+        state.headers = headers;
+        state.colIndex = colIndex;
+        state.rows = dataRows;
+
+        var unidadIdx = colIndex[REQUIRED.unidad];
+        var tipoIdx = colIndex[REQUIRED.tipoActividad];
+        state.unidades = uniqueSorted(dataRows.map(function(r){ return normStr(r[unidadIdx]); }));
+        state.tipos = uniqueSorted(dataRows.map(function(r){ return normStr(r[tipoIdx]); }));
+
+        state.selUnidad = new Set(state.unidades);
+        state.selTipo = new Set(state.tipos);
+
+        buildMultiselect('unidad', state.unidades, state.selUnidad);
+        buildMultiselect('tipo', state.tipos, state.selTipo);
+        updateMsLabels();
+
+        showStatus('Archivo cargado: ' + dataRows.length.toLocaleString('es-CL') + ' filas de datos, ' + state.unidades.length + ' unidades académicas.', false);
+
+        recomputeAll();
+      }catch(err){
+        console.error(err);
+        showStatus('Error al leer el archivo: ' + err.message, true);
+        state.rows = [];
+        document.getElementById('btnDownload1').disabled = true;
+        document.getElementById('btnDownload2').disabled = true;
+      }
+    };
+    reader.onerror = function(){ showStatus('No se pudo leer el archivo.', true); };
+    reader.readAsArrayBuffer(file);
+  }
+
+  function normStr(v){
+    if(v === null || v === undefined) return '';
+    return String(v).replace(/\s+/g,' ').trim();
+  }
+  function uniqueSorted(arr){
+    var set = new Set(arr.filter(function(v){ return v !== ''; }));
+    return Array.from(set).sort(function(a,b){ return a.localeCompare(b, 'es'); });
+  }
+
+  function recomputeAll(){
+    if(!state.rows.length) return;
+    computeReport1();
+    computeReport2();
+  }
+
+  /* ---------------- Selectores múltiples ---------------- */
+  function buildMultiselect(key, values, selectedSet){
+    var list = document.getElementById(key + 'List');
+    list.innerHTML = '';
+    values.forEach(function(val){
+      var item = document.createElement('label');
+      item.className = 'ms-item';
+      var cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = selectedSet.has(val);
+      cb.addEventListener('change', function(){
+        if(cb.checked) selectedSet.add(val); else selectedSet.delete(val);
+        updateMsLabels();
+        recomputeAll();
+      });
+      var span = document.createElement('span');
+      span.textContent = val;
+      item.appendChild(cb);
+      item.appendChild(span);
+      item.dataset.value = val.toLowerCase();
+      list.appendChild(item);
+    });
+    document.getElementById(key + 'Count').textContent = values.length + ' opciones disponibles';
+  }
+
+  function updateMsLabels(){
+    var uLabel = document.getElementById('msUnidadLabel');
+    var tLabel = document.getElementById('msTipoLabel');
+    uLabel.textContent = labelFor(state.selUnidad, state.unidades, 'unidad académica', 'unidades académicas');
+    tLabel.textContent = labelFor(state.selTipo, state.tipos, 'tipo de actividad', 'tipos de actividad');
+  }
+  function labelFor(selectedSet, all, singular, plural){
+    if(all.length === 0) return 'Cargar archivo primero';
+    if(selectedSet.size === all.length) return 'Todas (' + all.length + ' ' + plural + ')';
+    if(selectedSet.size === 0) return 'Ninguna seleccionada';
+    if(selectedSet.size === 1) return Array.from(selectedSet)[0];
+    return selectedSet.size + ' ' + plural + ' seleccionadas';
+  }
+
+  // Abrir/cerrar paneles
+  document.querySelectorAll('.ms-toggle').forEach(function(btn){
+    btn.addEventListener('click', function(e){
+      e.stopPropagation();
+      var msEl = btn.closest('.ms');
+      var wasOpen = msEl.classList.contains('open');
+      document.querySelectorAll('.ms.open').forEach(function(m){ m.classList.remove('open'); });
+      if(!wasOpen) msEl.classList.add('open');
+    });
+  });
+  document.addEventListener('click', function(){
+    document.querySelectorAll('.ms.open').forEach(function(m){ m.classList.remove('open'); });
+  });
+  document.querySelectorAll('.ms-panel').forEach(function(p){
+    p.addEventListener('click', function(e){ e.stopPropagation(); });
+  });
+
+  // Seleccionar todo / deseleccionar todo
+  document.querySelectorAll('.ms-panel-actions button').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var target = btn.dataset.target;
+      var action = btn.dataset.action;
+      var selSet = target === 'unidad' ? state.selUnidad : state.selTipo;
+      var values = target === 'unidad' ? state.unidades : state.tipos;
+      if(action === 'all'){ values.forEach(function(v){ selSet.add(v); }); }
+      else{ selSet.clear(); }
+      buildMultiselect(target, values, selSet);
+      updateMsLabels();
+      recomputeAll();
+    });
+  });
+
+  // Búsqueda dentro del listado
+  document.querySelectorAll('.ms-search').forEach(function(inp){
+    inp.addEventListener('input', function(){
+      var target = inp.dataset.target;
+      var q = inp.value.toLowerCase();
+      document.querySelectorAll('#' + target + 'List .ms-item').forEach(function(item){
+        item.style.display = item.dataset.value.indexOf(q) >= 0 ? 'flex' : 'none';
+      });
+    });
+    inp.addEventListener('click', function(e){ e.stopPropagation(); });
+  });
+
+  /* ---------------- Lógica de filtrado ---------------- */
+  function getFilteredRows(){
+    var c = state.colIndex;
+    var unidadIdx = c[REQUIRED.unidad];
+    var tipoIdx = c[REQUIRED.tipoActividad];
+    return state.rows.filter(function(row){
+      var u = normStr(row[unidadIdx]);
+      var t = normStr(row[tipoIdx]);
+      return state.selUnidad.has(u) && state.selTipo.has(t);
+    });
+  }
+
+  function downloadRows(rows, filename){
+    var aoaOut = [state.headers].concat(rows);
+    var ws = XLSX.utils.aoa_to_sheet(aoaOut);
+    var wbOut = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wbOut, ws, 'Datos filtrados');
+    XLSX.writeFile(wbOut, filename);
+  }
+
+  function formatPct(pct){
+    var decimals = (pct > 0 && pct < 10) ? 1 : 0;
+    return pct.toLocaleString('es-CL', {minimumFractionDigits:decimals, maximumFractionDigits:decimals}) + '%';
+  }
+
+  /* ---------------- Informe 1: docentes por definir ---------------- */
+  var report1Rows = [];
+  function computeReport1(){
+    var c = state.colIndex;
+    var profIdx = c[REQUIRED.profesor];
+    var nrcIdx = c[REQUIRED.nrc];
+
+    var filtered = getFilteredRows();
+    var totalNrcSet = new Set(filtered.map(function(row){ return normStr(row[nrcIdx]); }));
+
+    var porDefinir = filtered.filter(function(row){
+      var p = normStr(row[profIdx]).toUpperCase();
+      return p.indexOf('POR DEFINIR') >= 0;
+    });
+
+    var nrcSet = new Set(porDefinir.map(function(row){ return normStr(row[nrcIdx]); }));
+    report1Rows = porDefinir;
+
+    var pct = totalNrcSet.size ? (nrcSet.size / totalNrcSet.size * 100) : 0;
+
+    document.getElementById('r1count').textContent = nrcSet.size.toLocaleString('es-CL');
+    document.getElementById('r1pct').textContent = formatPct(pct);
+    document.getElementById('r1caption').textContent = 'NRC únicos con docente por definir, de ' + totalNrcSet.size.toLocaleString('es-CL') + ' NRC únicos en la selección filtrada';
+    document.getElementById('btnDownload1').disabled = porDefinir.length === 0;
+  }
+
+  document.getElementById('btnDownload1').addEventListener('click', function(){
+    downloadRows(report1Rows, 'Informe1_Docentes_Por_Definir.xlsx');
+  });
+
+  /* ---------------- Informe 2: secciones presenciales sin sala ---------------- */
+  var report2Rows = [];
+  function computeReport2(){
+    var c = state.colIndex;
+    var modalidadIdx = c[REQUIRED.modalidad];
+    var salaIdx = c[REQUIRED.sala];
+    var horarioIdx = c[REQUIRED.horario];
+    var nrcIdx = c[REQUIRED.nrc];
+
+    var filtered = getFilteredRows();
+    var totalNrcSet = new Set(filtered.map(function(row){ return normStr(row[nrcIdx]); }));
+
+    var sinSala = filtered.filter(function(row){
+      var modalidad = normStr(row[modalidadIdx]).toUpperCase();
+      var sala = normStr(row[salaIdx]);
+      return modalidad === 'PRESENCIAL' && sala === '';
+    });
+
+    report2Rows = sinSala;
+
+    var totalSet = new Set(sinSala.map(function(row){ return normStr(row[nrcIdx]); }));
+
+    // Agrupar por horario, contando NRC únicos por horario
+    var byHorario = {};
+    sinSala.forEach(function(row){
+      var h = normStr(row[horarioIdx]) || '(sin horario indicado)';
+      var nrc = normStr(row[nrcIdx]);
+      if(!byHorario[h]) byHorario[h] = new Set();
+      byHorario[h].add(nrc);
+    });
+
+    var horarios = Object.keys(byHorario).sort(function(a,b){ return a.localeCompare(b, 'es'); });
+    var tbody = document.getElementById('r2tbody');
+    tbody.innerHTML = '';
+    if(horarios.length === 0){
+      var trEmpty = document.createElement('tr');
+      trEmpty.innerHTML = '<td colspan="3" style="color:var(--ink-soft)">Sin resultados para los filtros elegidos</td>';
+      tbody.appendChild(trEmpty);
+    }else{
+      horarios.forEach(function(h){
+        var tr = document.createElement('tr');
+        var tdH = document.createElement('td');
+        tdH.textContent = h;
+        var tdC = document.createElement('td');
+        tdC.className = 'num';
+        tdC.textContent = byHorario[h].size.toLocaleString('es-CL');
+        var tdP = document.createElement('td');
+        tdP.className = 'num';
+        var hPct = totalSet.size ? (byHorario[h].size / totalSet.size * 100) : 0;
+        tdP.textContent = formatPct(hPct);
+        tr.appendChild(tdH);
+        tr.appendChild(tdC);
+        tr.appendChild(tdP);
+        tbody.appendChild(tr);
+      });
+    }
+
+    var pct2 = totalNrcSet.size ? (totalSet.size / totalNrcSet.size * 100) : 0;
+
+    document.getElementById('r2count').textContent = totalSet.size.toLocaleString('es-CL');
+    document.getElementById('r2pct').textContent = formatPct(pct2);
+    document.getElementById('r2caption').textContent = 'NRC únicos sin sala asignada, jornada presencial · ' + horarios.length + ' horarios distintos afectados, de ' + totalNrcSet.size.toLocaleString('es-CL') + ' NRC únicos en la selección filtrada';
+    document.getElementById('btnDownload2').disabled = sinSala.length === 0;
+  }
+
+  document.getElementById('btnDownload2').addEventListener('click', function(){
+    downloadRows(report2Rows, 'Informe2_Presencial_Sin_Sala.xlsx');
+  });
+
+})();
+</script>
+</body>
+</html>
